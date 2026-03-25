@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbre de décision — Bassin Minier 2050</title>
+<style>
+  :root {
+    --coal:   #1A252F;
+    --coal2:  #2A3B4A;
+    --coalL:  #3D4F5C;
+    --amber:  #C97D0E;
+    --amberD: #A5670B;
+    --amberXL:#FBF3E2;
+    --paper:  #F6F4EF;
+    --white:  #FFFFFF;
+    --lgray:  #E2DDD5;
+    --mgray:  #9A9A9A;
+    --dgray:  #3A4A56;
+    --cS4:    #8B1E30;
+    --cS4L:   #FAF0EF;
+    --cS1:    #4A5568;
+    --cS1L:   #F2F3F5;
+    --cS3:    #1A5276;
+    --cS3L:   #EBF3FA;
+    --cS2:    #1A5E36;
+    --cS2L:   #E8F5EE;
+    --cS5:    #7A5200;
+    --cS5L:   #FBF3E2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--paper);
+    color: var(--coal);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .page { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--coal);
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--mgray);
+    margin-bottom: 2rem;
+    font-style: italic;
+  }
+
+  /* Progress & trail */
+  .trail {
+    display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px;
+    margin-bottom: 1rem; align-items: center;
+  }
+  .crumb {
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 11px; padding: 2px 9px; border-radius: 12px;
+    background: var(--lgray); color: var(--dgray);
+    border: 0.5px solid #ccc; white-space: nowrap;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .arr { font-size: 11px; color: var(--mgray); }
+  .prog { display: flex; gap: 5px; align-items: center; margin-bottom: 1rem; }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #ccc; transition: all .2s;
+  }
+  .dot.done { background: var(--mgray); }
+  .dot.active { width: 18px; border-radius: 3px; background: var(--coal); }
+  .plbl { font-family: 'Calibri', Arial, sans-serif; font-size: 11px; color: var(--mgray); margin-left: 6px; }
+
+  /* Question card */
+  .qcard {
+    background: var(--white); border: 0.5px solid var(--lgray);
+    border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: .75rem;
+    border-left: 3px solid var(--amber);
+  }
+  .qlbl {
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--mgray); margin-bottom: 5px;
+  }
+  .qtxt {
+    font-size: 18px; font-weight: 700; line-height: 1.45;
+    color: var(--coal); margin-bottom: 6px;
+  }
+  .qctx {
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 11px; color: var(--mgray); font-style: italic; line-height: 1.5;
+  }
+
+  /* Choices */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .choices { grid-template-columns: 1fr; } }
+  .cbtn {
+    background: var(--white); border: 0.5px solid #bbb;
+    border-radius: 10px; padding: 14px 16px; cursor: pointer;
+    text-align: left; font-family: 'Calibri', Arial, sans-serif;
+    transition: transform .12s, background .12s; position: relative;
+  }
+  .cbtn:hover { background: var(--lgray); transform: translateY(-2px); }
+  .cbtn::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%; border-radius: 10px 0 0 10px;
+    background: var(--amber);
+  }
+  .clbl { font-size: 13.5px; font-weight: 700; color: var(--coal); display: block; line-height: 1.4; margin-bottom: 4px; }
+  .chnt { font-size: 11.5px; color: var(--mgray); display: block; line-height: 1.4; }
+
+  /* Scenario card */
+  .scard { border-radius: 12px; overflow: hidden; border: 1px solid; }
+  .shead { padding: 1.5rem 1.75rem; }
+  .scode { font-family: 'Calibri', Arial, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .09em; margin-bottom: 4px; }
+  .sname { font-size: 28px; font-weight: 700; margin-bottom: 5px; }
+  .stag { font-family: 'Calibri', Arial, sans-serif; font-size: 13px; font-style: italic; opacity: .8; }
+  .sstats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 1.1rem 1.75rem; background: var(--white);
+    border-top: 0.5px solid #ddd;
+  }
+  .stat { text-align: center; padding: 10px 6px; background: var(--paper); border-radius: 8px; }
+  .snum { display: block; font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+  .slbl { font-family: 'Calibri', Arial, sans-serif; font-size: 11px; color: var(--dgray); }
+  .sdesc {
+    padding: 1rem 1.75rem; background: var(--white);
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 13.5px; color: var(--dgray); line-height: 1.7;
+  }
+  .skeys { display: flex; flex-wrap: wrap; gap: 6px; padding: 1rem 1.75rem; background: var(--white); border-top: 0.5px solid #eee; }
+  .skey { font-family: 'Calibri', Arial, sans-serif; font-size: 11.5px; padding: 3px 10px; border-radius: 12px; border: 0.5px solid; }
+
+  /* Buttons */
+  .acts { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+  .abtn {
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 13px; padding: 8px 16px; border-radius: 8px;
+    border: 0.5px solid #bbb; background: transparent; cursor: pointer;
+    color: var(--dgray); transition: background .12s;
+  }
+  .abtn:hover { background: var(--lgray); }
+  .abtn.p { color: var(--coal); border-color: var(--coal); font-weight: 700; }
+
+  .hint-bar {
+    background: var(--amberXL); border-radius: 8px; padding: 10px 14px;
+    font-family: 'Calibri', Arial, sans-serif;
+    font-size: 12px; color: var(--amberD); margin-bottom: 1rem;
+    border-left: 3px solid var(--amber);
+  }
+
+  /* Scenarios overview at the bottom */
+  .overview {
+    margin-top: 3rem; border-top: 0.5px solid var(--lgray); padding-top: 1.5rem;
+  }
+  .overview-title {
+    font-size: 14px; font-weight: 700; color: var(--coalL); margin-bottom: 1rem;
+    font-family: 'Calibri', Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .sc-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+    padding: 10px 14px; border-radius: 8px; background: var(--white);
+    border: 0.5px solid var(--lgray);
+  }
+  .sc-badge {
+    min-width: 44px; text-align: center; font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  }
+  .sc-name { font-size: 14px; font-weight: 700; min-width: 180px; }
+  .sc-nums { font-family: 'Calibri', Arial, sans-serif; font-size: 12px; color: var(--mgray); margin-right: auto; }
+  .sc-tag { font-family: 'Calibri', Arial, sans-serif; font-size: 11.5px; color: var(--mgray); font-style: italic; }
+
+  footer {
+    margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--lgray);
+    font-family: 'Calibri', Arial, sans-serif; font-size: 11px; color: var(--mgray);
+    text-align: center; font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Arbre de décision — Bassin Minier 2050</h1>
+  <p class="subtitle">Note de synthèse Sandrine · HER Sciences Po · Réunion de cadrage Patrick, mars 2026</p>
+
+  <div class="hint-bar" id="hint">
+    Suivez les embranchements pour découvrir lequel des 5 scénarios 2050 correspond à vos hypothèses sur la gouvernance, l'engagement de l'État et le cap de l'ERBM 2.
+  </div>
+  <div class="prog" id="prog"></div>
+  <div class="trail" id="trail"></div>
+  <div id="content"></div>
+  <div class="acts" id="acts"></div>
+
+  <!-- Scenarios overview -->
+  <div class="overview">
+    <div class="overview-title">Les 5 scénarios 2050</div>
+    <div class="sc-row">
+      <span class="sc-badge" style="background:var(--cS4L);color:var(--cS4)">S4</span>
+      <span class="sc-name" style="color:var(--cS4)">Rupture</span>
+      <span class="sc-nums">18–22 % chôm. · 28–30 % pauv.</span>
+      <span class="sc-tag">Chocs convergents + désengagement État</span>
+    </div>
+    <div class="sc-row">
+      <span class="sc-badge" style="background:var(--cS1L);color:var(--cS1)">S1</span>
+      <span class="sc-name" style="color:var(--cS1)">Inertiel</span>
+      <span class="sc-nums">10–12 % chôm. · 20–22 % pauv.</span>
+      <span class="sc-tag">Le plus probable sans engagement fort</span>
+    </div>
+    <div class="sc-row">
+      <span class="sc-badge" style="background:var(--cS3L);color:var(--cS3)">S3</span>
+      <span class="sc-name" style="color:var(--cS3)">Métropolitain</span>
+      <span class="sc-nums">8–10 % chôm. · 16–18 % pauv.</span>
+      <span class="sc-tag">MEL + SERM + campus satellites</span>
+    </div>
+    <div class="sc-row">
+      <span class="sc-badge" style="background:var(--cS2L);color:var(--cS2)">S2★</span>
+      <span class="sc-name" style="color:var(--cS2)">Recentrage Humain</span>
+      <span class="sc-nums">∼ 7 % chôm. · ∼ 14 % pauv.</span>
+      <span class="sc-tag">ERBM 2 humain · Nathalie Chusseau</span>
+    </div>
+    <div class="sc-row">
+      <span class="sc-badge" style="background:var(--cS5L);color:var(--cS5)">S5★</span>
+      <span class="sc-name" style="color:var(--cS5)">Pivot Hybride</span>
+      <span class="sc-nums">∼ 5 % chôm. · ∼ 11 % pauv.</span>
+      <span class="sc-tag">Gouvernance multiniveaux · Scénario optimal</span>
+    </div>
+  </div>
+
+  <footer>Formation HER — Sciences Po · Défi Prospectif · Soirée des alumni · 26 mars 2026</footer>
+</div>
+
+<script>
+const Q = {
+  q1: {
+    depth: 1, lbl: "Décision 1 / 3",
+    q: "L'État maintient-il un engagement fort sur le bassin minier après 2027 ?",
+    ctx: "Fin de l'ERBM · chef de projet SGAR sans successeur identifié · réunion de cadrage HER, mars 2026",
+    ch: [
+      { l: "Non — désengagement ou reconduction formelle", h: "Statu quo institutionnel · pas de nouveau mandat national fort", n: 'q1b' },
+      { l: "Oui — relais national maintenu avec ambition renouvelée", h: "Préfet développeur dédié · Mission Bassin Minier renforcée", n: 'q2' }
+    ]
+  },
+  q1b: {
+    depth: 2, lbl: "Décision 2 / 3",
+    q: "Des chocs économiques convergents frappent-ils le territoire ?",
+    ctx: "Ex. Sogefi Douai 130 emplois · fermetures industrielles · spirale pauvreté → défiance → vote protestataire",
+    ch: [
+      { l: "Oui — plusieurs chocs destabilisateurs convergent", h: "Fermetures industrielles + désengagement + crise budgétaire", n: 's4' },
+      { l: "Non — statu quo sans chocs majeurs", h: "Le territoire se stabilise sans progresser", n: 's1' }
+    ]
+  },
+  q2: {
+    depth: 2, lbl: "Décision 2 / 3",
+    q: "L'ERBM 2 est-il centré sur le capital humain (parentalité, formation, santé, emploi) ?",
+    ctx: "Sandrine (mars 2026) : « pas d'ERBM2 sans mesure d'impact » · question centrale de la controverse HER",
+    ch: [
+      { l: "Non — priorité au bâti et à l'électrification industrielle", h: "Continuité de l'ERBM 1 · humain en second plan", n: 'q2b' },
+      { l: "Oui — pivot vers le capital humain dès 2026", h: "1/3 des investissements fléché compétences · évaluation intégrée", n: 'q3' }
+    ]
+  },
+  q2b: {
+    depth: 3, lbl: "Décision 3 / 3",
+    q: "La MEL intègre-t-elle le bassin dans sa stratégie (SERM financé, campus satellites) ?",
+    ctx: "« Lille n'en veut pas » · réunion HER, mars 2026 · tension MEL / bassin minier historique",
+    ch: [
+      { l: "Non — MEL passive · SERM non financé ou limité", h: "Pas d'intégration métropolitaine réelle", n: 's1b' },
+      { l: "Oui — intégration dans l'aire métropolitaine lilloise", h: "SERM + Canal Seine-Nord + campus délocalisés (SRESRI)", n: 's3' }
+    ]
+  },
+  q3: {
+    depth: 3, lbl: "Décision 3 / 3",
+    q: "La gouvernance est-elle convergente — État + Région + 8 EPCI + MEL — avec objectifs mesurables ?",
+    ctx: "Qui est l'instance du futur ? · OCDE « place-based policies » · choc de coopération (JF Caron)",
+    ch: [
+      { l: "Non — Région chef de file seule · EPCI partiellement alignés", h: "S2★ porté par Nathalie Chusseau · Radar d'Impact partiel", n: 's2' },
+      { l: "Oui — gouvernance multiniveaux · tous alignés", h: "État + Région + 8 EPCI + MEL + ESS · observatoire conjoint", n: 's5' }
+    ]
+  }
+};
+
+const S = {
+  s4: {
+    code: 'S4 · Rupture', name: 'La Rupture',
+    tag: '« Chocs convergents et retrait de l\'État » · Risque réel',
+    col: 'var(--cS4)', bg: 'var(--cS4L)',
+    st: [{ n: '18–22 %', l: 'Chômage 2050' }, { n: '28–30 %', l: 'Pauvreté 2050' }, { n: '0 / 100', l: 'Score Radar' }],
+    desc: "Plusieurs facteurs négatifs convergent : fermetures industrielles, crise budgétaire, désengagement de l'État. La spirale pauvreté → défiance → fuite des talents s'auto-entretient. Vote protestataire amplifié, investisseurs repoussés, territoire relégué durablement.",
+    keys: ["Spirale défiance", "Fermetures industrielles", "Fuite des talents", "Relégation durable"]
+  },
+  s1: {
+    code: 'S1 · Inertiel', name: 'L\'Inertiel',
+    tag: '« On continue comme avant » · Le plus probable sans engagement fort',
+    col: 'var(--cS1)', bg: 'var(--cS1L)',
+    st: [{ n: '10–12 %', l: 'Chômage 2050' }, { n: '20–22 %', l: 'Pauvreté 2050' }, { n: '45 / 100', l: 'Score Radar' }],
+    desc: "L'ERBM se termine sans relai décisif. « On a du mal à passer à l'acte » — réunion HER, mars 2026. Le chef de projet SGAR part sans successeur identifié. Le patrimoine rénové se stabilise mais les volets humains restent fragmentés.",
+    keys: ["SGAR sans successeur", "Essoufflement institutionnel", "Façades ≠ destins", "Reproduction sociale non traitée"]
+  },
+  s1b: {
+    code: 'S1 · Inertiel (variante)', name: 'L\'Inertiel',
+    tag: '« Engagement national sans ancrage métropolitain »',
+    col: 'var(--cS1)', bg: 'var(--cS1L)',
+    st: [{ n: '10–12 %', l: 'Chômage 2050' }, { n: '20–22 %', l: 'Pauvreté 2050' }, { n: '45 / 100', l: 'Score Radar' }],
+    desc: "Même avec un engagement national renouvelé, l'absence d'intégration métropolitaine (MEL passive, SERM non financé) prive le bassin d'attractivité résidentielle. La dynamique industrielle seule ne suffit pas à transformer les destins sociaux.",
+    keys: ["MEL absente", "SERM non financé", "Attractivité limitée", "Inégalités persistantes"]
+  },
+  s3: {
+    code: 'S3 · Métropolitain', name: 'Le Métropolitain',
+    tag: '« Bassin Minier = métropole élargie » · Probable si la MEL joue le jeu',
+    col: 'var(--cS3)', bg: 'var(--cS3L)',
+    st: [{ n: '8–10 %', l: 'Chômage 2050' }, { n: '16–18 %', l: 'Pauvreté 2050' }, { n: '58 / 100', l: 'Score Radar' }],
+    desc: "Le bassin s'intègre à l'aire métropolitaine lilloise via SERM, campus satellites et Canal Seine-Nord. Métropolisation sélective : les cadres en bénéficient, les publics fragiles risquent d'être oubliés.",
+    keys: ["SERM + MEL", "Campus satellites", "Métropolisation sélective", "Publics fragiles dilués"]
+  },
+  s2: {
+    code: 'S2★ · Recentrage Humain', name: 'Le Recentrage Humain',
+    tag: '« ERBM 2 — l\'humain d\'abord » · Porté par Nathalie Chusseau',
+    col: 'var(--cS2)', bg: 'var(--cS2L)',
+    st: [{ n: '∼ 7 %', l: 'Chômage 2050' }, { n: '∼ 14 %', l: 'Pauvreté 2050' }, { n: '76 / 100', l: 'Score Radar' }],
+    desc: "ERBM 2 centré sur la qualification, les 1 000 premiers jours, la parentalité et la santé. Résultats lents à percevoir (risque politique) mais ingénierie solide et objectifs mesurables. Région chef de file avec moyens propres.",
+    keys: ["1 000 premiers jours", "Parentalité PMI", "Objectifs mesurables", "Région chef de file"]
+  },
+  s5: {
+    code: 'S5★ · Pivot Hybride', name: 'Le Pivot Hybride',
+    tag: '« Scénario optimal » · Le plus exigeant politiquement',
+    col: 'var(--cS5)', bg: 'var(--cS5L)',
+    st: [{ n: '∼ 5 %', l: 'Chômage 2050' }, { n: '∼ 11 %', l: 'Pauvreté 2050' }, { n: '92 / 100', l: 'Score Radar' }],
+    desc: "Convergence systémique : ERBM 2 humain + gouvernance multiniveaux + choc de coopération (JF Caron). État + Région + 8 EPCI + MEL + ESS alignés autour d'un observatoire conjoint Éducation–Emploi–Santé. Le bassin devient un modèle européen.",
+    keys: ["Gouvernance multiniveaux", "Choc de coopération", "OCDE place-based", "Modèle européen"]
+  }
+};
+
+let path = [], cur = 'q1';
+
+function render() {
+  document.getElementById('hint').style.display = path.length > 0 ? 'none' : 'block';
+  renderProg();
+  renderTrail();
+  S[cur] ? renderScenario() : renderQuestion();
+  renderActs();
+}
+
+function renderProg() {
+  const maxD = 3, depth = Q[cur] ? Q[cur].depth : 4;
+  const el = document.getElementById('prog');
+  if (path.length === 0 && !S[cur]) { el.innerHTML = ''; return; }
+  let dots = '';
+  for (let i = 1; i <= maxD; i++) {
+    const d = S[cur] ? 'done' : i < depth ? 'done' : i === depth ? 'active' : '';
+    dots += `<span class="dot ${d}"></span>`;
+  }
+  const lbl = S[cur] ? 'Scénario atteint' : `Étape ${depth} sur ${maxD}`;
+  el.innerHTML = dots + `<span class="plbl">${lbl}</span>`;
+}
+
+function renderTrail() {
+  const el = document.getElementById('trail');
+  if (path.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = path.map((p, i) =>
+    `<span class="crumb" title="${p.c}">${p.c.length > 40 ? p.c.slice(0, 40) + '…' : p.c}</span>${i < path.length - 1 ? '<span class="arr"> › </span>' : ''}`
+  ).join('');
+}
+
+function renderQuestion() {
+  const q = Q[cur];
+  document.getElementById('content').innerHTML = `
+    <div class="qcard">
+      <div class="qlbl">${q.lbl}</div>
+      <div class="qtxt">${q.q}</div>
+      <div class="qctx">${q.ctx}</div>
+    </div>
+    <div class="choices">
+      ${q.ch.map((c, i) => `
+        <button class="cbtn" onclick="choose(${i})">
+          <span class="clbl">${c.l}</span>
+          <span class="chnt">${c.h}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+function renderScenario() {
+  const sc = S[cur];
+  document.getElementById('content').innerHTML = `
+    <div class="scard" style="border-color:${sc.col}">
+      <div class="shead" style="background:${sc.bg}">
+        <div class="scode" style="color:${sc.col}">${sc.code}</div>
+        <div class="sname" style="color:${sc.col}">${sc.name}</div>
+        <div class="stag" style="color:${sc.col}">${sc.tag}</div>
+      </div>
+      <div class="sstats">
+        ${sc.st.map(s => `<div class="stat"><span class="snum" style="color:${sc.col}">${s.n}</span><span class="slbl">${s.l}</span></div>`).join('')}
+      </div>
+      <div class="sdesc">${sc.desc}</div>
+      <div class="skeys">
+        ${sc.keys.map(k => `<span class="skey" style="color:${sc.col};border-color:${sc.col};background:${sc.bg}">${k}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderActs() {
+  const isSc = !!S[cur];
+  document.getElementById('acts').innerHTML = `
+    <button class="abtn p" onclick="reset()">↺ Recommencer</button>
+    ${path.length > 0 ? '<button class="abtn" onclick="back()">‹ Retour</button>' : ''}`;
+}
+
+function choose(i) {
+  const c = Q[cur].ch[i];
+  path.push({ qid: cur, c: c.l });
+  cur = c.n;
+  render();
+}
+function back() {
+  if (!path.length) return;
+  const p = path.pop();
+  cur = p.qid;
+  render();
+}
+function reset() {
+  path = []; cur = 'q1';
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
